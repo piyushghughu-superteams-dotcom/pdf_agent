@@ -196,13 +196,13 @@ pip install -r requirements.txt
 python apps/pdf_extract.py
 
 # 3. Convert to JSON (if separate)
-python apps/extract_data_to_json.py
+python apps/models.py
 
-# 4. Insert into DB
+# 4. Setup DB schema
+python apps/db.py
+
+# 5. Insert into DB
 python apps/insert_to_db.py
-
-# 5. Run (local testing)
-python apps/rag.py
 
 # 6. Start API
 uvicorn apps.main:app --reload
