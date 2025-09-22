@@ -226,3 +226,4 @@ uvicorn apps.main:app --reload
 If you want, I can now:
 - update the README file in the repository with this corrected version (I have saved it locally), or
 - include quick sample `.env.example` and `curl` examples.
+<p><strong>This blog was written in collaboration with <a href="https://www.superteams.ai">Superteams.ai</a></strong></p>
