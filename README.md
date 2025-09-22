@@ -15,27 +15,30 @@ It lets you upload PDFs, extract their text/tables, store embeddings in a databa
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Structure (actual — all Python scripts live under `apps/`)
 
 ```
 PDF_AGENT/
-│── apps/                     # utility scripts
+│── apps/                     # all Python scripts and utilities (run scripts from here)
+│   │── db.py
+│   │── extract_data_to_json.py
+│   │── insert_to_db.py
+│   │── main.py                # FastAPI app
+│   │── models.py
+│   │── pdf_extract.py
+│   │── rag.py
+│   └── ...other utils
 │── output/                   # extracted data, JSON, images, tables
 │   │── extracted_data.json
 │   │── db_ready_data.json
 │   │── complete_output.md
 │   └── images/
 │── pdf_holder/               # place PDFs here
-│── pdf_extract.py            # extract text/tables from PDF
-│── extract_data_to_json.py   # convert extracted text to JSON
-│── insert_to_db.py           # insert extracted content into DB
-│── models.py                 # DB models
-│── db.py                     # database connection
-│── rag.py                    # Enhanced RAG logic
-│── main.py                   # FastAPI server
-│── requirements.txt          # dependencies
+│── venv/                     # optional: virtual environment
 │── .env                      # environment variables
+│── requirements.txt          # dependencies
 │── .gitignore
+│── README.md                 # this file
 ```
 
 ---
@@ -55,7 +58,7 @@ CREATE DATABASE report_agent_11;
 ```
 
 ### 3. Configure environment variables
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (replace placeholders):
 
 ```
 PG_HOST=localhost
@@ -74,7 +77,8 @@ MISTRAL_API_KEY=your_mistral_api_key
 ```bash
 python -m venv venv
 source venv/bin/activate   # Linux/Mac
-venv\Scripts\activate      # Windows
+# or for Windows PowerShell:
+# venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 ```
@@ -82,48 +86,72 @@ pip install -r requirements.txt
 ---
 
 ### 5. Extract PDF content
-- Place your PDF inside the `pdf_holder/` folder  
-- Update the file name inside **`pdf_extract.py`**  
+- Place your PDF inside the `pdf_holder/` folder.  
+- In `apps/pdf_extract.py` set the PDF filename (if required) or adapt the script to read all files in `pdf_holder/`.  
 - Run extraction:
+
 ```bash
-python pdf_extract.py
+python apps/pdf_extract.py
 ```
+
+Extraction outputs (JSON, markdown, images, pages) will be saved under `output/`.
 
 ---
 
-### 6. Setup database models
+### 6. Convert extracted output to structured JSON
+If your pipeline separates extraction and JSON conversion, run:
+
 ```bash
-python models.py
-python db.py
+python apps/extract_data_to_json.py
 ```
+
+This should create/update `output/extracted_data.json` or `output/db_ready_data.json`.
 
 ---
 
-### 7. Insert extracted content into DB
+### 7. Prepare DB models / schema (if needed)
+If `apps/models.py` includes schema creation or migration helpers, run it:
+
 ```bash
-python insert_to_db.py
+python apps/models.py
+# or run any setup script you have inside apps/ that creates tables
 ```
+
+If you use raw SQL, run migrations or create tables manually using psql.
 
 ---
 
-### 8. Run RAG locally
+### 8. Insert extracted content into DB
+Once `output/db_ready_data.json` is ready, insert into DB:
+
 ```bash
-python rag.py
+python apps/insert_to_db.py
 ```
 
-This will let you interact with the system via terminal.
+This should populate tables like `document_chunks` and `extracted_tables`.
 
 ---
 
-### 9. Start FastAPI server
-Expose the RAG system via API:
+### 9. Run RAG locally (optional CLI)
+If you have a CLI runner inside `apps/rag.py` (for testing), run:
 
 ```bash
-uvicorn main:app --reload
+python apps/rag.py
 ```
 
-- Health check: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)  
-- Query endpoint: [http://127.0.0.1:8000/query](http://127.0.0.1:8000/query)  
+Otherwise the RAG logic will be used by the FastAPI app in the next step.
+
+---
+
+### 10. Start FastAPI server (serve `/query`)
+Run the FastAPI app located in `apps/main.py` with uvicorn:
+
+```bash
+uvicorn apps.main:app --reload
+```
+
+- Health check: `http://127.0.0.1:8000/`  
+- Query endpoint: `http://127.0.0.1:8000/query`  
 
 Example request (POST):
 ```json
@@ -132,12 +160,18 @@ Example request (POST):
 }
 ```
 
+> If `uvicorn apps.main:app` fails due to import, you can also run the file directly if it contains `uvicorn.run(...)`:
+```bash
+python apps/main.py
+```
+
 ---
 
-### 🔗 10. Connect with Frontend
+### 🔗 11. Connect with Frontend
 1. Create your frontend (React/Next.js) in a separate folder (outside `PDF_AGENT/`).  
 2. Configure your frontend to send requests to `http://localhost:8000/query`.  
 3. Example fetch:
+
 ```javascript
 const response = await fetch("http://localhost:8000/query", {
   method: "POST",
@@ -150,15 +184,45 @@ console.log(data.answer);
 
 ---
 
-## ✅ Summary Flow
+## ✅ Quick command checklist (run from project root)
 
-1. Clone → `git clone ...`  
-2. Setup DB → `CREATE DATABASE report_agent_11;`  
-3. Configure `.env` → DB + API keys  
-4. Install dependencies → `pip install -r requirements.txt`  
-5. Extract PDFs → `python pdf_extract.py`  
-6. Setup DB models → `python models.py && python db.py`  
-7. Insert to DB → `python insert_to_db.py`  
-8. Run RAG → `python rag.py`  
-9. Serve API → `uvicorn main:app --reload`  
-10. Connect frontend → send queries to `/query`  
+```bash
+# 1. Setup venv & deps
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Extract PDFs to output/
+python apps/pdf_extract.py
+
+# 3. Convert to JSON (if separate)
+python apps/extract_data_to_json.py
+
+# 4. Insert into DB
+python apps/insert_to_db.py
+
+# 5. Run (local testing)
+python apps/rag.py
+
+# 6. Start API
+uvicorn apps.main:app --reload
+```
+
+---
+
+## Troubleshooting & Tips
+
+- If scripts cannot find `pdf_holder/`, run them from the repo root (so relative paths work).  
+- If PostgreSQL connection errors occur, verify `.env` values and that Postgres is running.  
+- If `uvicorn apps.main:app` fails to import `apps`, try adding the project root to `PYTHONPATH`:
+  ```bash
+  export PYTHONPATH=$PWD
+  uvicorn apps.main:app --reload
+  ```
+- Keep secrets out of the repo — use `.env` and `.gitignore`.
+
+---
+
+If you want, I can now:
+- update the README file in the repository with this corrected version (I have saved it locally), or
+- include quick sample `.env.example` and `curl` examples.
